@@ -4,6 +4,24 @@ IMPORTANT
 - DAT Downloads have been moved to GitHub - https://github.com/maurice-daly/DriverAutomationTool
 - Latest build EXEs available from - https://github.com/maurice-daly/DriverAutomationTool/tree/master/Current%20Branch
 
+Version 7.2.5
+Updated: 
+    Version to 7.2.5 as the prod exe is already 7.2.4.
+    About URL to: https://msendpointmgr.com/driver-automation-tool/
+    Added detection in several locations for Windows 11.
+    Changed first time run os to $OSComboBox.Text = "Windows 11" and all vendors but Dell to $false
+    Updated switch -wildcard ($CurrentSystemOS.Caption) to also look for Windows 11
+Fix:
+    Code changes to reflect visual studio code recommendations for $null comparisons (put $null on the left of evaluations).
+    Code changes to reflect PowerShell verb warnings for Functions:
+        Schedule-Downloads, changed to Invoke-Schedule-Downloads
+        Distribute-Content, changed to Invoke-Distribute-Content
+        Create-CustomPkg, changed to Invoke-Create-CustomPkg
+        Create-DriverFBPkg, changed to Invoke-Create-DriverFBPkg
+
+Version 7.2.4a
+New: Windows 11 24H2 Support.
+
 Version 7.2.3
 New: Added support for Windows 11 23H2. Microsoft Surface download links for 23H2 to follow. Lenovo and HP supported at present, Dell retains Windows 11 only driver packages
 
