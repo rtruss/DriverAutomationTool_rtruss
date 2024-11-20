@@ -7,7 +7,7 @@ IMPORTANT
 Version 7.2.5
 (Roger_Truss@brunswick.com)
 Updated: 
-    Version to 7.2.5 as the prod exe is already 7.2.4.
+    Script version to 7.2.5 as the prod exe is already 7.2.4.
     About URL to: https://msendpointmgr.com/driver-automation-tool/
     Added detection in several locations for Windows 11.
     Changed first time run os to $OSComboBox.Text = "Windows 11" and all vendors but Dell to $false
