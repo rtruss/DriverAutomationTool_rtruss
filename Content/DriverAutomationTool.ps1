@@ -34,7 +34,7 @@ param (
 	the corresponding latest driver packs and BIOS updates.
 .NOTES
     FileName:    DriverDownloadTool.ps1
-	Blog: 		 https://www.scconfigmgr.com
+	Blog: 		 https://www.msendpointmgr.com
     Author:      Maurice Daly
     Twitter:     @Modaly_IT
     Created:     2017-01-01
@@ -115,26 +115,50 @@ param (
 							Updated package creation for all packages just to include the SKU/BaseBoard values
 							Updated link within the tool to GitHub as Technet is being retired
 							Updated custom package creation to include Windows 10 1909		
-6.5.6 - (2021-20-08)	Updated manufacturer sources, with feeds from GitHub repo for imporoved maintenance
-						Fix for Microsoft Surface model detection on download
-						Fixes for other bugs and typos
-7.0.0 - (2021-19-11)	Support for Windows 11 and Windows 10 21H2
-						Intune BIOS Control XML support
-7.0.4 - (2022-03-09)	Fix: HP SKU value issue causing description lenght exception
-			Fix: Dell BIOS download previously selecting old version where multiple downloads are found
-			New: WINRM over HTTPS option
-7.1.8 - (2022-01-09)	Microsoft Surface model download fixes.
-7.1.9 - (2022-22-09)	Added support for Windows 11 22H2
-7.2.0 - (2022-02-12)	Mostly bug fixes and Windows 10 22H2 support
-7.2.1 - (2022-20-12)	Added fix for Dell BIOS packages not showing in the CSV summary output
-7.2.2 - (2023-10-01)	Bug fixes
-7.2.3 - (2024-25-02)	Added support for Windows 11 23H2. Please note that Microsoft Surface links for 23H2 will follow in the next update
-			Minor bug fixes
-			Compile order issue bugs resolved in hotfix with SHA 256 6b3e8a777bbc567b4be33be593d563109ce9ec205ba9a5864f90d6e4ad986b1b
-7.2.3 - (2024-19-11)	Added support for Windows 11 24H2. (roger.truss@brunswick.com)
-7.2.5 - (2024-20-11)	Updated version to 7.2.5 as the prod exe is already 7.2.4. (roger.truss@brunswick.com)
-
-	#>
+	6.5.6 - (2021-20-08)	Updated manufacturer sources, with feeds from GitHub repo for imporoved maintenance
+							Fix for Microsoft Surface model detection on download
+							Fixes for other bugs and typos
+	7.0.0 - (2021-19-11)	Support for Windows 11 and Windows 10 21H2
+							Intune BIOS Control XML support
+	7.0.4 - (2022-03-09)	Fix: HP SKU value issue causing description lenght exception
+				Fix: Dell BIOS download previously selecting old version where multiple downloads are found
+				New: WINRM over HTTPS option
+	7.1.8 - (2022-01-09)	Microsoft Surface model download fixes.
+	7.1.9 - (2022-22-09)	Added support for Windows 11 22H2
+	7.2.0 - (2022-02-12)	Mostly bug fixes and Windows 10 22H2 support
+	7.2.1 - (2022-20-12)	Added fix for Dell BIOS packages not showing in the CSV summary output
+	7.2.2 - (2023-10-01)	Bug fixes
+	7.2.3 - (2024-25-02)	Added support for Windows 11 23H2. Please note that Microsoft Surface links for 23H2 will follow in the next update
+				Minor bug fixes
+				Compile order issue bugs resolved in hotfix with SHA 256 6b3e8a777bbc567b4be33be593d563109ce9ec205ba9a5864f90d6e4ad986b1b
+	7.2.4 - (2024-19-11)	(roger.truss@brunswick.com) Added support for Windows 11 24H2.
+	7.2.5 - (2024-20-11)	(roger.truss@brunswick.com) Updated version to 7.2.5 as the prod exe is already 7.2.4.
+							Changed first time run os to $OSComboBox.Text = "Windows 11" and all vendors but Dell to $false
+							Updated switch -wildcard ($CurrentSystemOS.Caption) to also look for Windows 11
+								"*Windows 11*" {
+									$OSRelease = [version]"10.0"
+									$OSName = "Windows 11"
+								}
+							Added section to account for windows 11:
+									if ($OSName -eq "Windows 11") {
+										$Windows11Build = $WindowsBuildHashTable.Keys.Where({
+												$WindowsBuildHashTable[$_] -match $CurrentSystemOS.Version
+											})
+										$OSName = $OSName + " $Windows11Build"
+									}
+							Code changes to reflect visual studio code recomentdations for $null comparisons (put $null on the left of evaluations).
+							Code changes to reflect powershell verb warnings for Functions (https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands?view=powershell-7.4):
+							Schedule-Downloads, changed to Invoke-Schedule-Downloads
+							Distribute-Content, changed to Invoke-Distribute-Content
+							Create-CustomPkg, changed to Invoke-Create-CustomPkg
+							Create-DriverFBPkg, changed to Invoke-Create-DriverFBPkg
+							Parameter '$Password' should not use String type but either SecureString or PSCredential, otherwise it increases the chance to expose this sensitive information."
+							ref: https://learn.microsoft.com/en-us/powershell/utility-modules/psscriptanalyzer/rules/avoidusingplaintextforpassword?view=ps-modules
+							The phrase is used several times in the script so not changing that. (rtruss)
+							Updated $MSEndpointMgrLink_LinkClicked url to https://msendpointmgr.com/driver-automation-tool"
+							$ReleaseNotesURL Updated with my fork info
+							[version]$NewRelease Updated with my fork info
+#>
 
 
 # Write Initialisation State
@@ -1082,7 +1106,7 @@ function Show-MainForm_psf
 						$_.SiteCode -eq ($SCCMWMI.Name).TrimStart("SMS:")
 					} | Select-Object -ExpandProperty Machine
 					
-					if ($SCCMWMI.CurrentManagementPoint -ne $null) {
+					if ($null -ne $SCCMWMI.CurrentManagementPoint) {
 						global:Write-LogEntry -Value "======== ConfigMgr Site Discovery ========" -Severity 1
 						if (-not ([string]::IsNullOrEmpty($SMSProvider))) {
 							$SiteServerInput.Text = $SMSProvider
@@ -1106,12 +1130,12 @@ function Show-MainForm_psf
 						global:Write-LogEntry -Value "-ConfigMgr detected - Running first time demo mode" -Severity 1
 						$PlatformComboBox.Text = "ConfigMgr - Standard Pkg"
 						$DownloadComboBox.Text = "Drivers"
-						$OSComboBox.Text = "Windows 10"
+						$OSComboBox.Text = "Windows 11"
 						$ArchitectureComboxBox.Text = "64 Bit"
 						$DellCheckBox.Checked = $true
 						$HPCheckBox.Checked = $false
-						$LenovoCheckBox.Checked = $true
-						$MicrosoftCheckBox.Checked = $true
+						$LenovoCheckBox.Checked = $false
+						$MicrosoftCheckBox.Checked = $false
 						$ConfigMgrImport.Text = "Yes"
 						$FindModelsButton_Click
 					}
@@ -1119,12 +1143,12 @@ function Show-MainForm_psf
 						global:Write-LogEntry -Value "-Failed to detect ConfigMgr - Running first time demo mode" -Severity 1
 						$PlatformComboBox.Text = "Download Only"
 						$DownloadComboBox.Text = "Drivers"
-						$OSComboBox.Text = "Windows 10"
+						$OSComboBox.Text = "Windows 11"
 						$ArchitectureComboxBox.Text = "64 Bit"
 						$DellCheckBox.Checked = $true
 						$HPCheckBox.Checked = $false
-						$LenovoCheckBox.Checked = $true
-						$MicrosoftCheckBox.Checked = $true
+						$LenovoCheckBox.Checked = $false
+						$MicrosoftCheckBox.Checked = $false
 						$FindModelsButton_Click
 					}
 				}
@@ -1153,7 +1177,7 @@ function Show-MainForm_psf
 				global:Write-LogEntry -Value "Mode: Silent running switch enabled" -Severity 2 -SkipGuiLog $true
 				$ErrorActionPreference = "Stop"
 				Write-Host "=== MSEndpointMgr Download Automation Tool - Silent Running ==="
-				If (($ScriptRelease -ne $null) -and ($ScriptRelease -lt $NewRelease)) {
+				If (($null -ne $ScriptRelease) -and ($ScriptRelease -lt $NewRelease)) {
 					global:Write-LogEntry -Value "Update Alert: Newer Version Available - $NewRelease" -Severity 2 -SkipGuiLog $true
 				}
 				$MainForm.WindowState = 'Minimized'
@@ -1166,7 +1190,7 @@ function Show-MainForm_psf
 			} else {
 				$MainForm.WindowState = 'Normal'
 				$ReleaseNotesText.Text = (Invoke-WebRequest -Uri $ReleaseNotesURL -UseBasicParsing).Content
-				If (($ScriptRelease -ne $null) -and ($ScriptRelease -lt $NewRelease)) {
+				If (($null -ne $ScriptRelease) -and ($ScriptRelease -lt $NewRelease)) {
 					global:Write-LogEntry -Value "Update Alert: Newer Version Available - $NewRelease" -Severity 2 -SkipGuiLog $true
 					global:Write-LogEntry -Value "Update Alert: Opening New Version Form" -Severity 2 -SkipGuiLog $true
 					Set-UpdateNotice
@@ -1290,7 +1314,7 @@ function Show-MainForm_psf
 	}
 	
 	$MSEndpointMgrLink_LinkClicked = {
-		Start-Process "https://www.MSEndpointMgr.com/2017/03/01/driver-automation-tool/"
+		Start-Process "https://msendpointmgr.com/driver-automation-tool/"
 	}
 	
 	$OSComboBox_SelectedIndexChanged = {
@@ -1395,7 +1419,7 @@ function Show-MainForm_psf
 	
 	$CreatePackagesButton_Click = {
 		$SelectionTabs.SelectedTab = $LogTab
-		Create-CustomPkg
+		Invoke-Create-CustomPkg
 	}
 	
 	$ImportCSVButton_Click = {
@@ -1413,7 +1437,7 @@ function Show-MainForm_psf
 	
 	$CreateFallbackButton_Click = {
 		$SelectionTabs.SelectedTab = $LogTab
-		Create-DriverFBPkg
+		Invoke-Create-DriverFBPkg
 	}
 	
 	$FallbackOSCombo_SelectedIndexChanged = {
@@ -1434,7 +1458,7 @@ function Show-MainForm_psf
 			$PasswordTextBox.BackColor = 'White'
 			$ProgressListBox.ForeColor = 'Black'
 			# Run scheduled job function
-			Schedule-Downloads
+			Invoke-Schedule-Downloads
 		} else {
 			# Prompt User		
 			$UsernameTextBox.BackColor = 'Yellow'
@@ -1598,10 +1622,10 @@ function Show-MainForm_psf
 			}
 			global:Write-LogEntry -Value "-Creating XML import file" -Severity 1
 			Write-XMLModels -XMLPath $ExtractDriverDir -Make $CustomPkgDataGrid.Rows[0].Cells[0].Value -Model $CustomPkgDataGrid.Rows[0].Cells[1].Value -MatchingValues $CustomPkgDataGrid.Rows[0].Cells[2].Value -OperatingSystem $CustomPkgDataGrid.Rows[0].Cells[4].Value -Architecture $CustomPkgDataGrid.Rows[0].Cells[5].Value -Platform $CustomPkgPlatform.SelectedItem
-			sleep -Seconds 3
+			Start-Sleep -Seconds 3
 			global:Write-LogEntry -Value "-Finished export" -Severity 1
 			$PkgImportingText.Text = "Finished export process"
-			sleep -Seconds 3
+			Start-Sleep -Seconds 3
 			$PkgImportingText.Visible = $false
 			$PkgImporting.Visible = $false
 		} Catch [System.Exception]{
@@ -1623,8 +1647,8 @@ function Show-MainForm_psf
 		$CustomPkgDataGrid.Rows.Clear()
 		global:Write-LogEntry -Value "======== Querying Local System ========" -Severity 1
 		# Obtain local system details
-		$CurrentSystemOS = Get-CIMInstance -ClassName Win32_OperatingSystem -NameSpace root\CIMV2 | select -Property OSArchitecture, Version, Caption
-		$CurrentModel = Get-CIMInstance -ClassName Win32_ComputerSystem -NameSpace root\CIMV2 | select -Property Manufacturer, Model, SystemSKUNumber
+		$CurrentSystemOS = Get-CIMInstance -ClassName Win32_OperatingSystem -NameSpace root\CIMV2 | Select-Object -Property OSArchitecture, Version, Caption
+		$CurrentModel = Get-CIMInstance -ClassName Win32_ComputerSystem -NameSpace root\CIMV2 | Select-Object -Property Manufacturer, Model, SystemSKUNumber
 		$BaseBoardProduct = (Get-CIMInstance -ClassName MS_SystemInformation -NameSpace root\WMI).BaseBoardProduct
 		
 		switch -wildcard ($CurrentModel.Manufacturer) {
@@ -1647,6 +1671,10 @@ function Show-MainForm_psf
 		}
 		
 		switch -wildcard ($CurrentSystemOS.Caption) {
+			"*Windows 11*" {
+				$OSRelease = [version]"10.0"
+				$OSName = "Windows 11"
+			}
 			"*Windows 10*" {
 				$OSRelease = [version]"10.0"
 				$OSName = "Windows 10"
@@ -1678,6 +1706,13 @@ function Show-MainForm_psf
 					$WindowsBuildHashTable[$_] -match $CurrentSystemOS.Version
 				})
 			$OSName = $OSName + " $Windows10Build"
+		}
+
+		if ($OSName -eq "Windows 11") {
+			$Windows11Build = $WindowsBuildHashTable.Keys.Where({
+					$WindowsBuildHashTable[$_] -match $CurrentSystemOS.Version
+				})
+			$OSName = $OSName + " $Windows11Build"
 		}
 		
 		global:Write-LogEntry -Value "$($Product): Model detected $($CurrentModel.Make) $($CurrentModel.Model)" -Severity 1
@@ -1845,7 +1880,7 @@ function Show-MainForm_psf
 	}
 	
 	$RefreshIntuneModels_Click = {
-		if (($global:Authentication -ne $null) -and ($global:Authentication.ExpiresOn -gt (Get-Date))) {
+		if (($null -ne $global:Authentication) -and ($global:Authentication.ExpiresOn -gt (Get-Date))) {
 			global:Write-LogEntry -Value "Graph API: Refreshing Devices" -Severity 1
 			Get-ManagedDevices
 		} else {
@@ -13599,8 +13634,11 @@ AABJRU5ErkJgggs='))
 	# Script Build Numbers
 	[version]$ScriptRelease = "7.2.5"
 	$ScriptBuildDate = "2024-11-20"
-	[version]$NewRelease = (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/maurice-daly/DriverAutomationTool/master/Data//DriverAutomationToolRev.txt" -UseBasicParsing).Content
-	$ReleaseNotesURL = "https://raw.githubusercontent.com/maurice-daly/DriverAutomationTool/master/Data/DriverAutomationToolNotes.txt"
+	#rtruss forked info for now.
+	$ReleaseNotesURL = "https://raw.githubusercontent.com/rtruss/DriverAutomationTool_rtruss/refs/heads/master/Data/DriverAutomationToolNotes.txt"
+	[version]$NewRelease = (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/rtruss/DriverAutomationTool_rtruss/refs/heads/master/Data/DriverAutomationToolRev.txt" -UseBasicParsing).Content	
+	#[version]$NewRelease = (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/maurice-daly/DriverAutomationTool/master/Data//DriverAutomationToolRev.txt" -UseBasicParsing).Content
+	#$ReleaseNotesURL = "https://raw.githubusercontent.com/maurice-daly/DriverAutomationTool/master/Data/DriverAutomationToolNotes.txt"
 	$OEMLinksURL = "https://raw.githubusercontent.com/maurice-daly/DriverAutomationTool/master/Data/OEMLinks.xml"
 	
 	# Proxy Validation Initial State
@@ -14068,7 +14106,7 @@ AABJRU5ErkJgggs='))
 			global:Write-ErrorOutput -Message "[Error] - $($_.Exception.Message)" -Severity 3
 			$SiteCodeError = $true
 		}
-		if (($SiteCodeObjects -ne $null) -and ($SiteCodeError -ne $true)) {
+		if (($null -ne $SiteCodeObjects) -and ($SiteCodeError -ne $true)) {
 			foreach ($SiteCodeObject in $SiteCodeObjects) {
 				if ($SiteCodeObject.ProviderForLocalSite -eq $true) {
 					$global:SiteCode = $SiteCodeObject.SiteCode
@@ -14184,7 +14222,7 @@ AABJRU5ErkJgggs='))
 				}
 				
 				# Read XML File
-				if ($global:HPModelSoftPaqs -eq $null) {
+				if ($null -eq $global:HPModelSoftPaqs) {
 					$XMLDownloadStatus.Text = "Reading HP XML file"
 					global:Write-LogEntry -Value "- Reading HP driver pack XML file - $global:TempDirectory\$HPXMLFile" -Severity 1
 					[xml]$global:HPModelXML = Get-Content -Path $(Join-Path -Path $global:TempDirectory -ChildPath $HPXMLFile) -Raw
@@ -14278,7 +14316,7 @@ AABJRU5ErkJgggs='))
 					} | Select-Object SystemName, SystemID
 				}
 				
-				if ($HPModels -ne $null) {
+				if ($null -ne $HPModels) {
 					$XMLDownloadStatus.Text = "Adding $($HPModels.Count) HP models"
 					foreach ($Model in $HPModels.SystemName) {
 						$Model = $Model -replace "Win[^;]*", " "
@@ -14295,7 +14333,7 @@ AABJRU5ErkJgggs='))
 				}
 				$HPProducts = $HPProducts | Sort-Object
 				
-				if ($HPModels -ne $null) {
+				if ($null -ne $HPModels) {
 					foreach ($HPModel in $HPModels) {
 						$MakeModelDataGrid.Rows.Add($false, "HP", $($HPModel.SystemName).TrimStart("HP").Trim(), $OSComboBox.Text, $ArchitectureComboxBox.Text, $null, $null, $HPModel.SystemID)
 						$HPCatalogModels.Items.Add($($HPModel.SystemName).TrimStart("HP").Trim())
@@ -14378,7 +14416,7 @@ AABJRU5ErkJgggs='))
 						global:Write-ErrorOutput -Message "[Error] - $($_.Exception.Message)" -Severity 3
 					}
 				}
-				if ($global:DellModelXML -eq $null) {
+				if ($null -eq $global:DellModelXML) {
 					# Read XML File
 					global:Write-LogEntry -Value "- Reading Dell driver pack XML file - $global:TempDirectory\$DellXMLFile" -Severity 1
 					[xml]$global:DellModelXML = Get-Content -Path (Join-Path -Path $global:TempDirectory -ChildPath $DellXMLFile) -Raw
@@ -14387,7 +14425,7 @@ AABJRU5ErkJgggs='))
 				}
 				$global:DellModelCabFiles = $global:DellModelXML.driverpackmanifest.driverpackage
 				# Find Models Contained Within Downloaded XML
-				if (($ArchitectureComboxBox).Text -ne $null) {
+				if ($null -ne ($ArchitectureComboxBox).Text) {
 					switch -wildcard ($ArchitectureComboxBox.Text) {
 						"*32*" {
 							$Architecture = "x86"
@@ -14410,10 +14448,10 @@ AABJRU5ErkJgggs='))
 				} -Unique | Where-Object {
 					$_.SystemName -gt $null
 				}
-				if ($DellModels -ne $null) {
+				if ($null -ne $DellModels) {
 					$XMLDownloadStatus.Text = "Adding $($DellModels.Count) Dell models"
 					foreach ($Model in $DellModels.SystemName) {
-						if ($Model -ne $null) {
+						if ($null -ne $Model) {
 							if ($Model -notin $DellProducts) {
 								$DellProducts.Add($Model) | Out-Null
 							}
@@ -14422,7 +14460,7 @@ AABJRU5ErkJgggs='))
 					$StartDownloadButton.Enabled = $true
 				}
 				$DellProducts = $DellProducts | Sort-Object
-				if ($DellModels -ne $null) {
+				if ($null -ne $DellModels) {
 					foreach ($DellModel in ($DellModels | Sort-Object SystemName)) {
 						$MakeModelDataGrid.Rows.Add($false, "Dell", $(([string]($DellModel | Select-Object -ExpandProperty SystemName -Unique))), $OSComboBox.Text, $ArchitectureComboxBox.Text, $null, $null, $([string]($DellModel | Select-Object -ExpandProperty SystemID -Unique)))
 					}
@@ -14453,7 +14491,7 @@ AABJRU5ErkJgggs='))
 			}
 			if ($LenovoCheckBox.Checked -eq $true) {
 				$LenovoProducts.Clear()
-				if ($global:LenovoModelDrivers -eq $null) {
+				if ($null -eq $global:LenovoModelDrivers) {
 					try {
 						$XMLDownloadStatus.Text = "Downloading Lenovo XML Catalog"
 						if ((Test-Path -Path $global:TempDirectory\$LenovoXMLCabFile) -eq $false) {
@@ -14503,7 +14541,7 @@ AABJRU5ErkJgggs='))
 					}
 				}
 				
-				if ($LenovoModels -ne $null) {
+				if ($null -ne $LenovoModels) {
 					$XMLDownloadStatus.Text = "Adding $($LenovoModels.Count) Lenovo models"
 					foreach ($Model in $LenovoModels) {
 						$Model = $Model -replace "Win[^;]*", " "
@@ -14518,7 +14556,7 @@ AABJRU5ErkJgggs='))
 					$StartDownloadButton.Enabled = $true
 				}
 				$LenovoProducts = $LenovoProducts | Sort-Object
-				if ($LenovoProducts -ne $null) {
+				if ($null -ne $LenovoProducts) {
 					foreach ($LenovoModel in $LenovoProducts) {
 						$MakeModelDataGrid.Rows.Add($false, "Lenovo", $LenovoModel, $OSComboBox.Text, $ArchitectureComboxBox.Text, $null, $null, $([string](Find-LenovoModelType -Model $LenovoModel)))
 					}
@@ -14639,16 +14677,16 @@ AABJRU5ErkJgggs='))
 				# Select models known in WMI
 				if ($QueryKnownModels -eq $true) {
 					global:Write-LogEntry -Value "======== Selecting Known Models ========" -Severity 1
-					if ($DellKnownModels -ne $null) {
+					if ($null -ne $DellKnownModels) {
 						Select-KnownModels -SearchMake "Dell"
 					}
-					if ($HPKnownModels -ne $null) {
+					if ($null -ne $HPKnownModels) {
 						Select-KnownModels -SearchMake "HP"
 					}
-					if ($LenovoKnownModels -ne $null) {
+					if ($null -ne $LenovoKnownModels) {
 						Select-KnownModels -SearchMake "Lenovo"
 					}
-					if ($MicrosoftKnownModels -ne $null) {
+					if ($null -ne $MicrosoftKnownModels) {
 						Select-KnownModels -SearchMake "Microsoft"
 					}
 				}
@@ -14756,7 +14794,7 @@ AABJRU5ErkJgggs='))
 		$DistributionPointGroups = Get-WmiObject -ComputerName $SiteServer -Namespace "Root\SMS\Site_$SiteCode" -Query "SELECT Distinct Name FROM SMS_DistributionPointGroup" | Select-Object -ExpandProperty Name
 		# Populate Distribution Point List Box
 		$DPGridView.Rows.Clear()
-		if ($DistributionPoints -ne $null) {
+		if ($null -ne $DistributionPoints) {
 			foreach ($DP in $DistributionPoints) {
 				global:Write-LogEntry -Value "- Adding Distribution Point - $DP" -Severity 1
 				if ($XMLSelectedDPs -contains $DP) {
@@ -14769,7 +14807,7 @@ AABJRU5ErkJgggs='))
 		}
 		# Populate Distribution Point Group List Box
 		$DPGGridView.Rows.Clear()
-		if ($DistributionPointGroups -ne $null) {
+		if ($null -ne $DistributionPointGroups) {
 			foreach ($DPG in $DistributionPointGroups) {
 				global:Write-LogEntry -Value "- Adding Distribution Point Group - $DPG" -Severity 1
 				if ($XMLSelectedDPGs -contains $DPG) {
@@ -14838,7 +14876,7 @@ AABJRU5ErkJgggs='))
 		$SpecifyCustomPath.Enabled = $false
 	}
 	
-	function Distribute-Content {
+	function Invoke-Distribute-Content {
 		param
 		(
 			[parameter(Mandatory = $true)]
@@ -14904,7 +14942,7 @@ AABJRU5ErkJgggs='))
 				global:Write-LogEntry -Value "WinRM connection established" -Severity 1
 			}
 			
-			if ($ConfigMgrDiscovery -ne $null) {
+			if ($null -ne $ConfigMgrDiscovery) {
 				$ProgressListBox.ForeColor = "Black"
 				try {
 					if ($global:ConfigMgrValidation -ne $true) {
@@ -14912,7 +14950,7 @@ AABJRU5ErkJgggs='))
 						global:Write-LogEntry -Value "- Querying site code From $SiteServer" -Severity 1
 						Get-SiteCode -SiteServer $SiteServer
 						# Import Configuratio Manager PowerShell Module
-						if ($env:SMS_ADMIN_UI_PATH -ne $null) {
+						if ($null -ne $env:SMS_ADMIN_UI_PATH) {
 							$ModuleName = (Get-Item $env:SMS_ADMIN_UI_PATH | Split-Path -Parent) + "\ConfigurationManager.psd1"
 							global:Write-LogEntry -Value "- Loading ConfigMgr PowerShell module" -Severity 1
 							Import-Module $ModuleName
@@ -14956,7 +14994,7 @@ AABJRU5ErkJgggs='))
 			}
 		}
 		if ((Test-Path -Path $global:TempDirectory\$DellCatalogXMLFile) -eq $true) {
-			if ($global:DellCatalogXML -eq $null) {
+			if ($null -eq $global:DellCatalogXML) {
 				# Read XML File
 				global:Write-LogEntry -Value "- Reading Dell product XML file - $global:TempDirectory\$DellCatalogXMLFile" -Severity 1
 				[xml]$global:DellCatalogXML = Get-Content -Path $(Join-Path -Path $global:TempDirectory -ChildPath $DellCatalogXMLFile) -Raw
@@ -14974,13 +15012,13 @@ AABJRU5ErkJgggs='))
 				$DellBIOSFile = $global:DellCatalogXML.Manifest.SoftwareComponent | Where-Object {
 					($_.name.display."#cdata-section" -match "BIOS") -and ($_.SupportedSystems.Brand.Model.SystemID -match "$(($SKU).Split(";")[0])")
 				} | Sort-Object dateTime -Descending | Select-Object -First 1
-				if ($DellBIOSFile -eq $null) {
+				if ($null -eq $DellBIOSFile) {
 					$DellBIOSFile = $global:DellCatalogXML.Manifest.SoftwareComponent | Where-Object {
 						($_.name.display."#cdata-section" -match "BIOS") -and ($_.SupportedSystems.Brand.Model.SystemID -match "$(($SKU).Split(";")[1])")
 					} | Sort-Object dateTime -Descending | Select-Object -First 1
 				}
 			}
-			if (($DellBIOSFile -eq $null) -or (($DellBIOSFile).Count -gt 1)) {
+			if (($null -eq $DellBIOSFile) -or (($DellBIOSFile).Count -gt 1)) {
 				global:Write-LogEntry -Value "- Attempting to find BIOS link" -Severity 1
 				# Attempt to find BIOS link		
 				if ($Model -match "AIO") {
@@ -14991,7 +15029,7 @@ AABJRU5ErkJgggs='))
 				$DellBIOSFile = $global:DellCatalogXML.Manifest.SoftwareComponent | Where-Object {
 					($_.name.display."#cdata-section" -match "BIOS") -and ($_.SupportedSystems.Brand.Model.SystemID -match $SKU)
 				} | Sort-Object dateTime -Descending | Select-Object -First 1
-			} elseif ($DellBIOSFile -eq $null) {
+			} elseif ($null -eq $DellBIOSFile) {
 				# Attempt to find BIOS link via Dell model number (V-Pro / Non-V-Pro Condition)
 				$DellBIOSFile = $global:DellCatalogXML.Manifest.SoftwareComponent | Where-Object {
 					($_.name.display."#cdata-section" -match "BIOS") -and ($_.name.display."#cdata-section" -match "$($model.Split("-")[0])")
@@ -15042,10 +15080,10 @@ AABJRU5ErkJgggs='))
 		}
 		global:Write-LogEntry -Value "- Reading HP XML from $(Join-Path -Path $global:TempDirectory -ChildPath ($HPPlatformXMLFile | Split-Path -Leaf))" -Severity 1
 		$global:HPPlatformXML = (Select-Xml (Join-Path -Path $global:TempDirectory -ChildPath ($HPPlatformXMLFile | Split-Path -Leaf)) -XPath "/ImagePal").Node.Platform
-		if ($global:HPPlatformXML -ne $null) {
+		if ($null -ne $global:HPPlatformXML) {
 			global:Write-LogEntry -Value "- OS pre build strip is $OS" -Severity 1
 			global:Write-LogEntry -Value "- Model is $Model" -Severity 1
-			if ($global:SkuValue -ne $null) {
+			if ($null -ne $global:SkuValue) {
 				# Windows Build Driver Switch
 				switch -Wildcard ($OS) {
 					"*21H2"	{
@@ -15469,7 +15507,7 @@ AABJRU5ErkJgggs='))
 					$_.DisplayName -match "$BitsJobName"
 				}
 				global:Write-LogEntry -Value "- BitTransfer: Job state is `"$(($BitsJob).JobState)`"" -Severity 1 -SkipGuiLog $true
-				if ($BitsJob.BytesTotal -ne $null) {
+				if ($null -ne $BitsJob.BytesTotal) {
 					$global:BitsJobByteSize = $($BitsJob.BytesTotal)
 					$PercentComplete = [int](($BitsJob.BytesTransferred * 100)/$BitsJob.BytesTotal);
 					if ($PercentComplete -lt 50) {
@@ -16054,7 +16092,7 @@ AABJRU5ErkJgggs='))
 				$DriverINFFiles = Get-ChildItem -Path "$DriverExtractDest" -Recurse -Filter "*.inf" -File | Select-Object Name, FullName | Where-Object {
 					$_.FullName -like "*$Architecture*"
 				}
-				if ($DriverINFFiles.Count -ne $null) {
+				if ($null -ne $DriverINFFiles.Count) {
 					Set-Location -Path ($SiteCode + ":")
 					try {
 						#=====================
@@ -16103,7 +16141,7 @@ AABJRU5ErkJgggs='))
 						global:Write-ErrorOutput -Message "[Error] - $($_.Exception.Message) $($_.Exception.InnerException)" -Severity 3
 					}
 					global:Write-LogEntry -Value "- $($Product): Running driver import process (this might take several minutes)" -Severity 1
-					if ($ConfigMgrDriverPackage.PackageID -ne $null) {
+					if ($null -ne $ConfigMgrDriverPackage.PackageID) {
 						# Import Driver Loop
 						try {
 							$DriverImportStart = (Get-Date)
@@ -16124,7 +16162,7 @@ AABJRU5ErkJgggs='))
 							global:Write-LogEntry -Value "- $($Product): Driver package $($ConfigMgrDriverPackage.PackageID) created successfully" -Severity 1
 							# =============== Distrubute Content =================
 							global:Write-LogEntry -Value "- $($Product): Distributing $($ConfigMgrDriverPackage.PackageID)" -Severity 1
-							Distribute-Content -Product $Product -PackageID $ConfigMgrDriverPackage.PackageID -ImportInto $ImportInto
+							Invoke-Distribute-Content -Product $Product -PackageID $ConfigMgrDriverPackage.PackageID -ImportInto $ImportInto
 						} catch {
 							global:Write-ErrorOutput -Message "[Error] - $($_.Exception.Message)" -Severity 3
 						}
@@ -16145,7 +16183,7 @@ AABJRU5ErkJgggs='))
 		if ($ImportInto -like "*Standard*") {
 			if ($PackageType -match "Drivers") {
 				global:Write-LogEntry -Value "- $($Product): Driver count in path $DriverExtractDest - $((Get-ChildItem -Recurse -Path "$DriverExtractDest" -Filter *.inf -File).count) " -Severity 1
-				if ((Get-ChildItem -Recurse -Path "$DriverExtractDest" -Filter *.inf -File).Count -ne $null) {
+				if ($null -ne (Get-ChildItem -Recurse -Path "$DriverExtractDest" -Filter *.inf -File).Count) {
 					global:Write-LogEntry -Value "- $($Product): Validated drivers exist in $DriverExtractDest - Processing driver packaging steps " -Severity 1
 					global:Write-LogEntry -Value "==================== $PRODUCT DRIVER PACKAGE  ====================" -Severity 1
 					
@@ -16188,7 +16226,7 @@ AABJRU5ErkJgggs='))
 							}
 											
 							global:Write-LogEntry -Value "- $($Product): Checking for driver package $CMPackage with version number $DriverRevision" -Severity 1
-							if ($ConfiMgrPackage.PackageID -ne $null) {
+							if ($null -ne $ConfiMgrPackage.PackageID) {
 								Move-CMObject -FolderPath $global:VendorDriverFolder -ObjectID $ConfiMgrPackage.PackageID
 								global:Write-LogEntry -Value "- $($Product): Driver package $($ConfiMgrPackage.PackageID) created successfully" -Severity 1
 								if ($EnableBinaryDifCheckBox.Checked -eq $true) {
@@ -16196,7 +16234,7 @@ AABJRU5ErkJgggs='))
 									Set-CMPackage -ID $ConfiMgrPackage.PackageID -EnableBinaryDeltaReplication $true -Priority $DistributionPriorityCombo.Text
 								}
 								# =============== Distrubute Content =================
-								Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto $ImportInto			
+								Invoke-Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto $ImportInto			
 								
 							} else {
 								global:Write-ErrorOutput -Message "[Error] - Errors occurred while creating package" -Severity 3
@@ -16270,14 +16308,14 @@ AABJRU5ErkJgggs='))
 							}
 							Move-CMObject -FolderPath $global:VendorBIOSFolder -ObjectID $ConfiMgrPackage.PackageID
 							global:Write-LogEntry -Value "- $($Product): Checking for firmware package $CMPackage with version number $DriverRevision" -Severity 1
-							if ($ConfiMgrPackage.PackageID -ne $null) {
+							if ($null -ne $ConfiMgrPackage.PackageID) {
 								global:Write-LogEntry -Value "- $($Product): Driver package $($ConfiMgrPackage.PackageID) created successfully" -Severity 1
 								if ($EnableBinaryDifCheckBox.Checked -eq $true) {
 									global:Write-LogEntry -Value "- $($Product): Enabling Binary Delta Replication" -Severity 1
 									Set-CMPackage -ID $ConfiMgrPackage.PackageID -EnableBinaryDeltaReplication $true -Priority $DistributionPriorityCombo.Text
 								}
 								# =============== Distrubute Content =================
-								Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto $ImportInto
+								Invoke-Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto $ImportInto
 							} else {
 								global:Write-ErrorOutput -Message "[Error] - Errors occurred while creating package" -Severity 3
 							}
@@ -16355,7 +16393,7 @@ AABJRU5ErkJgggs='))
 			# ================= Create SoftPaq Update Package ==================			
 			Set-Location -Path ($SiteCode + ":")
 			$SoftPaqPackage = Get-CMPackage -Name $HPSoftPaqTitle -Fast | Select-Object SourceDate, Version | Sort-Object SourceDate -Descending | Select-Object -First 1
-			if (($SoftPaqPackage.Version -ne $HPSoftPaqVersion) -or ($SoftPaqPackage -eq $null)) {
+			if (($SoftPaqPackage.Version -ne $HPSoftPaqVersion) -or ($null -eq $SoftPaqPackage)) {
 				global:Write-LogEntry -Value "- $($Product): Creating SoftPaq Package" -Severity 1
 				New-CMPackage -Name "$HPSoftPaqTitle" -Path "$HPSoftPaqPkgPath" -Description "Models included in XML package. Supported Win10 builds ($HPSoftPaqOSBuilds)" -Manufacturer $Make -Language English -version $HPSoftPaqVersion
 				if ($EnableBinaryDifCheckBox.Checked -eq $true) {
@@ -16394,7 +16432,7 @@ AABJRU5ErkJgggs='))
 				}
 				Move-CMObject -FolderPath $SoftPaqFolder -ObjectID $ConfiMgrPackage.PackageID
 				#global:Write-LogEntry -Value "- $($Product): Distributing content to selected distribut" -Severity 1
-				Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto "Standard"
+				Invoke-Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto "Standard"
 				Set-Location -Path $global:TempDirectory
 			}
 		}
@@ -16640,7 +16678,7 @@ AABJRU5ErkJgggs='))
 		}
 		
 		# Validate OS Selection
-		if (($OSComboBox).Text -ne $null) {
+		if ($null -ne ($OSComboBox).Text) {
 			$WindowsVersion = (($OSComboBox).Text).Split(" ")[1]
 		} else {
 			global:Write-ErrorOutput -Message "[Error] - Operating System not specified" -Severity 3
@@ -16648,7 +16686,7 @@ AABJRU5ErkJgggs='))
 		}
 		
 		# Validate OS Architecture Selection
-		if (($ArchitectureComboxBox).Text -ne $null) {
+		if ($null -ne ($ArchitectureComboxBox).Text) {
 			switch -wildcard ($ArchitectureComboxBox.Text) {
 				"*32*" {
 					$Architecture = "x86"
@@ -16859,7 +16897,7 @@ AABJRU5ErkJgggs='))
 				switch ($Make) {
 					"Dell" {
 						global:Write-LogEntry -Value "- Setting Dell variables" -Severity 1 -SkipGuiLog $true
-						if ($global:DellModelCabFiles -eq $null) {
+						if ($null -eq $global:DellModelCabFiles) {
 							[xml]$DellModelXML = Get-Content -Path $(Join-Path -Path $global:TempDirectory -ChildPath $DellXMLFile) -Raw
 							
 							# Set XML Object
@@ -16905,7 +16943,7 @@ AABJRU5ErkJgggs='))
 					}
 					"HP" {
 						global:Write-LogEntry -Value "- Setting HP variables" -Severity 1 -SkipGuiLog $true
-						if ($global:HPModelSoftPaqs -eq $null) {
+						if ($null -eq $global:HPModelSoftPaqs) {
 							[xml]$global:HPModelXML = Get-Content -Path $(Join-Path -Path $global:TempDirectory -ChildPath $HPXMLFile) -Raw
 							# Set XML Object
 							$global:HPModelXML.GetType().FullName
@@ -17211,7 +17249,7 @@ AABJRU5ErkJgggs='))
 													# ================= Create BIOS Update Package ==================			
 													Set-Location -Path ($SiteCode + ":")
 													$BIOSModelPackage = Get-CMPackage -Name $BIOSUpdatePackage -Fast | Select-Object SourceDate, Version | Sort-Object SourceDate -Descending | Select-Object -First 1
-													if (($BIOSModelPackage.Version -ne $BIOSVer) -or ($BIOSModelPackage -eq $null)) {
+													if (($BIOSModelPackage.Version -ne $BIOSVer) -or ($null -eq $BIOSModelPackage)) {
 														global:Write-LogEntry -Value "- $($Product): Creating BIOS Package" -Severity 1
 														New-CMPackage -Name "$BIOSUpdatePackage" -Path "$BIOSUpdateRoot" -Description "(Models included:$global:SkuValue)" -Manufacturer "$Make" -Language English -version $BIOSVer
 														if ($EnableBinaryDifCheckBox.Checked -eq $true) {
@@ -17229,7 +17267,7 @@ AABJRU5ErkJgggs='))
 															$_.Version -eq $BIOSVer
 														}
 														Move-CMObject -FolderPath $global:VendorBIOSFolder -ObjectID $ConfiMgrPackage.PackageID
-														Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto $ImportInto
+														Invoke-Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto $ImportInto
 														Set-Location -Path $global:TempDirectory
 														$AddToSummary = $true
 													}
@@ -17270,7 +17308,7 @@ AABJRU5ErkJgggs='))
 									global:Write-ErrorOutput -Message "[Error] - $($_.Exception.Message)" -Severity 3
 								}
 								$LenovoBIOSDetails = (Select-Xml -Path ($global:TempDirectory + "\" + ($BIOSDownload.Location | Split-Path -leaf)) -XPath "/").Node.Package
-								if ($LenovoBIOSDetails.Name -ne $null) {
+								if ($null -ne $LenovoBIOSDetails.Name) {
 									$BIOSFile = ($LenovoBIOSDetails.ExtractCommand).Split(" ")[0]
 									if (-not ([string]::IsNullOrEmpty($BIOSFile))) {
 										global:Write-LogEntry -Value "- Found exe file link: $BIOSFile" -Severity 1
@@ -17373,7 +17411,7 @@ AABJRU5ErkJgggs='))
 															$_.Version -eq $BIOSVer
 														}
 														Move-CMObject -FolderPath $global:VendorBIOSFolder -ObjectID $ConfiMgrPackage.PackageID
-														Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto "Standard"
+														Invoke-Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto "Standard"
 														global:Write-LogEntry -Value "- $($Product): BIOS update package $($ConfiMgrPackage.PackageID) created & distributing" -Severity 1
 														$AddToSummary = $true
 													}
@@ -17411,7 +17449,7 @@ AABJRU5ErkJgggs='))
 							global:Write-LogEntry -Value "- Attempting to find HP BIOS download" -Severity 1
 							if ($Product -ne "Intune") {
 								$HPBIOSDownload = Find-HPBIOS -Model $Model -OS $OSVersion -Architecture $Architecture -SKUValue $(($global:SkuValue).Split(",") | Select-Object -First 1)
-								if ($HPBIOSDownload.URL -ne $null) {
+								if ($null -ne $HPBIOSDownload.URL) {
 									$BIOSDownload = "http://" + $($HPBIOSDownload.URL)
 									$BIOSVer = $HPBIOSDownload.Version.Trim()
 									$BIOSVerDir = $BIOSVer -replace '\.', '-'
@@ -17498,7 +17536,7 @@ AABJRU5ErkJgggs='))
 													# ================= Create BIOS Update Package ==================
 													Set-Location -Path ($SiteCode + ":")
 													$BIOSModelPackage = Get-CMPackage -Name "$BIOSUpdatePackage" -Fast | Select-Object SourceDate, Version | Sort-Object SourceDate -Descending | Select-Object -First 1
-													if (($BIOSModelPackage.Version -ne $BIOSVer) -or ($BIOSModelPackage -eq $null)) {
+													if (($BIOSModelPackage.Version -ne $BIOSVer) -or ($null -eq $BIOSModelPackage)) {
 														global:Write-LogEntry -Value "- $($Product): Creating BIOS package" -Severity 1
 														New-CMPackage -Name "$BIOSUpdatePackage" -Path "$BIOSUpdateRoot" -Description "(Models included:$global:SkuValue)" -Manufacturer "HP" -Language English -version $BIOSVer
 														Start-Sleep -Seconds 5
@@ -17513,7 +17551,7 @@ AABJRU5ErkJgggs='))
 															$_.Version -eq $BIOSVer
 														}
 														Move-CMObject -FolderPath $global:VendorBIOSFolder -ObjectID $ConfiMgrPackage.PackageID
-														Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto $ImportInto
+														Invoke-Distribute-Content -Product $Product -PackageID $ConfiMgrPackage.PackageID -ImportInto $ImportInto
 														global:Write-LogEntry -Value "- $($Product): BIOS Update package $($ConfiMgrPackage.PackageID) created & distributing" -Severity 1
 														Set-Location -Path $global:TempDirectory
 														$AddToSummary = $true
@@ -17584,7 +17622,7 @@ AABJRU5ErkJgggs='))
 									$Model = $Model.Replace(":", "_")
 								}
 								
-								If ($OSBuild -eq $null) {
+								If ($null -eq $OSBuild) {
 									$DriverExtractDest = ("$DownloadRoot" + $Model + "\" + "Windows$WindowsVersion-$Architecture-$DriverRevision")
 									$DriverPackageDest = ("$PackageRoot" + "$Model" + "\" + "Windows$WindowsVersion-$Architecture-$DriverRevision")
 								} else {
@@ -17669,7 +17707,7 @@ AABJRU5ErkJgggs='))
 										# Cater for HP / Model Issue
 										$Model = $Model -replace '/', '-'
 										
-										if (((Test-Path -Path "$($DownloadRoot + "$Model" + '\Driver Cab\' + $DriverCab)") -eq $true) -and ($DriverCab -ne $null) -and (($global:BitsJobByteSize -eq $((Get-Item -Path $($DownloadRoot + $Model + '\Driver Cab\' + $DriverCab)).Length)) -or ($PreviousDownload -eq $true))) {
+										if (((Test-Path -Path "$($DownloadRoot + "$Model" + '\Driver Cab\' + $DriverCab)") -eq $true) -and ($null -ne $DriverCab) -and (($global:BitsJobByteSize -eq $((Get-Item -Path $($DownloadRoot + $Model + '\Driver Cab\' + $DriverCab)).Length)) -or ($PreviousDownload -eq $true))) {
 											global:Write-LogEntry -Value "- $($Product): Calling driver extract function" -Severity 1
 											Invoke-ContentExtract
 											
@@ -17779,7 +17817,7 @@ AABJRU5ErkJgggs='))
 						# =============== MDT Driver Cab Download =================					
 						# Cater for HP / Model Issue
 						$Model = $Model -replace '/', '-'
-						if (($ModelURL -ne $null) -and ($ModelURL -ne "badLink")) {
+						if (($null -ne $ModelURL) -and ($ModelURL -ne "badLink")) {
 							Invoke-ContentDownload -OperationalMode StandardPackages
 							
 							# Check for destination directory, create if required and download the driver cab
@@ -17803,7 +17841,7 @@ AABJRU5ErkJgggs='))
 								global:Write-LogEntry -Value "- $($Product): Skipping $DriverCab.. Driver pack already extracted" -Severity 2
 							}
 							
-							if (((Test-Path -Path "$($DownloadRoot + $Model + '\Driver Cab\' + $DriverCab)") -eq $true) -and ($DriverCab -ne $null)) {
+							if (((Test-Path -Path "$($DownloadRoot + $Model + '\Driver Cab\' + $DriverCab)") -eq $true) -and ($null -ne $DriverCab)) {
 								# =============== MDT Driver EXTRACT ====================							
 								if ($DownloadType -ne "BIOS") {
 									# Driver variables & switches
@@ -17822,7 +17860,7 @@ AABJRU5ErkJgggs='))
 										$Model = $Model.Replace(":", "_")
 									}
 									
-									If ($OSBuild -eq $null) {
+									If ($null -eq $OSBuild) {
 										$DriverExtractDest = ("$DownloadRoot" + $Model + "\" + "Windows$WindowsVersion-$Architecture-$DriverRevision")
 										$DriverPackageDest = ("$PackageRoot" + "$Model" + "\" + "Windows$WindowsVersion-$Architecture-$DriverRevision")
 									} else {
@@ -18169,7 +18207,7 @@ AABJRU5ErkJgggs='))
 				if ($RemoveDriverSourceCheckbox.Checked -eq $true) {
 					# Clean Up Driver Source Files
 					Set-Location -Path $global:TempDirectory
-					if ((($DownloadPathTextBox.Text) -ne $null) -and ((Test-Path -Path ($DownloadPathTextBox.text)) -eq $true)) {
+					if (($null -ne ($DownloadPathTextBox.Text)) -and ((Test-Path -Path ($DownloadPathTextBox.text)) -eq $true)) {
 						global:Write-LogEntry -Value "- $($Product): Removing driver download and extracted source driver files from $($DownloadPathTextBox.Text)" -Severity 1
 						# Remove driver cabinets and extracted drivers
 						# Set-Location -Path ($DownloadPathTextBox.Text)		
@@ -18262,10 +18300,10 @@ AABJRU5ErkJgggs='))
 	}
 	
 	# Used to create scheduled task jobs
-	function Schedule-Downloads {
-		if ((Get-ScheduledTask | Where-Object {
+	function Invoke-Schedule-Downloads {
+		if ($null -eq (Get-ScheduledTask | Where-Object {
 					$_.TaskName -eq 'Driver Automation Tool'
-				}) -eq $null) {
+				})) {
 			global:Write-LogEntry -Value "======== Scheduling Job ========" -Severity 1
 			global:Write-LogEntry -Value "Scheduling: Copying PowerShell script to $($ScriptLocation.Text)" -Severity 1
 			Copy-Item (Join-Path (Get-ScriptDirectory) Run-DriverAutomationToolSvc.ps1) -Destination (Join-Path $ScriptLocation.Text "Run-DriverAutomationToolSvc.ps1")
@@ -18378,7 +18416,7 @@ AABJRU5ErkJgggs='))
 			$Password = $PasswordTextBox.Text
 			# Get current domain using logged-on user's credentials
 			$CurrentDomain = "LDAP://" + ([ADSI]"").distinguishedName
-			if ($CurrentDomain -ne $null) {
+			if ($null -ne $CurrentDomain) {
 				$DomainValidation = New-Object System.DirectoryServices.DirectoryEntry($CurrentDomain, $UserName, $Password)
 				if (($DomainValidation | Select-Object Path).path -gt $null) {
 					Return $true
@@ -18404,7 +18442,7 @@ AABJRU5ErkJgggs='))
 	
 	function Confirm-Settings {
 		
-		if ((($PlatformComboBox.SelectedText -ne $null -and $DownloadComboBox.SelectedText -ne $null -and $OSComboBox.SelectedText -ne $null -and $ArchitectureComboxBox.Text -ne $null))) {
+		if ((($null -ne $PlatformComboBox.SelectedText -and $null -ne $DownloadComboBox.SelectedText -and $null -ne $OSComboBox.SelectedText -and $null -ne $ArchitectureComboxBox.Text))) {
 			$global:Validation = $true
 			
 		} else {
@@ -18425,8 +18463,8 @@ AABJRU5ErkJgggs='))
 			[Uri[]][ValidateNotNullOrEmpty()]
 			[Uri]$URL,
 			[parameter(Mandatory = $true)]
-			[String[]][ValidateNotNullOrEmpty()]
-			[string]$Password
+			[Secure[]][ValidateNotNullOrEmpty()]
+			[Secure]$Password
 		)
 		
 		global:Write-LogEntry -Value "======== PROXY SERVER VALIDATION ========" -Severity 1
@@ -18519,7 +18557,7 @@ AABJRU5ErkJgggs='))
 	}
 	
 	function Update-ConfigMgrPkgList {
-		if (($PackageTypeCombo.Text -ne $null) -and ($DeploymentStateCombo.Text -ne $null)) {
+		if (($null -ne $PackageTypeCombo.Text) -and ($null -ne $DeploymentStateCombo.Text)) {
 			try {
 				$PackageUpdateNotice.text = "Updating ConfigMgr package list."
 				$PackageUpdatePanel.visible = $true
@@ -18561,7 +18599,7 @@ AABJRU5ErkJgggs='))
 	}
 	
 	function Update-MakeModelList {
-		if (($PackageTypeCombo.Text -ne $null) -and ($DeploymentStateCombo.Text -ne $null)) {
+		if (($null -ne $PackageTypeCombo.Text) -and ($null -ne $DeploymentStateCombo.Text)) {
 			try {
 				$PackageUpdateNotice.text = "Updating package list.."
 				$PackageUpdatePanel.visible = $true
@@ -18759,7 +18797,7 @@ AABJRU5ErkJgggs='))
 		$PackageUpdateNotice.visible = $false
 	}
 	
-	function Create-CustomPkg {
+	function Invoke-Create-CustomPkg {
 		
 		$ConfigMgrPkg = {
 			
@@ -18801,7 +18839,7 @@ AABJRU5ErkJgggs='))
 							$_.Version -eq $ConfigMgrPackageRevision
 						}
 						global:Write-LogEntry -Value "- Package created $($CustomPackage.PackageID)" -Severity 1
-						Distribute-Content -Product $Platform -PackageID $CustomPackage.PackageID -ImportInto "Standard"
+						Invoke-Distribute-Content -Product $Platform -PackageID $CustomPackage.PackageID -ImportInto "Standard"
 						global:Write-LogEntry -Value "- Distributing package $($CustomPackage.PackageID)" -Severity 1
 						Set-ConfigMgrFolder
 						Set-Location -Path ($SiteCode + ":")
@@ -19183,7 +19221,7 @@ AABJRU5ErkJgggs='))
 		}
 	}
 	
-	function Create-DriverFBPkg {
+	function Invoke-Create-DriverFBPkg {
 		
 		try {
 			$WindowsVersion = $FallbackOSCombo.Text
@@ -19220,7 +19258,7 @@ AABJRU5ErkJgggs='))
 						global:Write-LogEntry -Value "- Moving package ID $FallbackPackage to $FallbackDriverFolder" -Severity 1
 						Move-CMObject -ObjectID $FallbackPackage -FolderPath $FallbackDriverFolder
 						global:Write-LogEntry -Value "- Distributing content to selected distribution points" -Severity 1
-						Distribute-Content -Product $Platform -PackageID $CustomPackage.PackageID -ImportInto "Standard"
+						Invoke-Distribute-Content -Product $Platform -PackageID $CustomPackage.PackageID -ImportInto "Standard"
 					} catch [System.Exception] {
 						Write-Warning -Message "[Error] - Errors occurred while creating package - $($_.Exception.Message)"
 					}
@@ -19943,7 +19981,7 @@ AABJRU5ErkJgggs='))
 								global:Write-LogEntry -Value "XML Logic Package: Enabling Binary Delta Replication" -Severity 1
 								Set-CMPackage -ID $XMLPackageID -EnableBinaryDeltaReplication $true -Priority $DistributionPriorityCombo.Text
 							}
-							Distribute-Content -Product $XMLPackageName -PackageID $XMLPackageID -ImportInto "Standard"
+							Invoke-Distribute-Content -Product $XMLPackageName -PackageID $XMLPackageID -ImportInto "Standard"
 						} catch [System.Exception] {
 							Write-Warning -Message "[Error] - $($_.Exception.Message)"
 						}
@@ -20371,7 +20409,7 @@ AABJRU5ErkJgggs='))
 			}
 			
 			# Obtain HP baseboard value for filtering
-			if ($global:HPModelSoftPaqs -eq $null) {
+			if ($null -eq $global:HPModelSoftPaqs) {
 				[xml]$global:HPModelXML = Get-Content -Path $(Join-Path -Path $global:TempDirectory -ChildPath $HPXMLFile) -Raw
 				# Set XML Object
 				$global:HPModelXML.GetType().FullName
@@ -20599,7 +20637,7 @@ AABJRU5ErkJgggs='))
 			}
 			
 			# Sort by column index where available
-			if ($SortColumn -ne $null) {
+			if ($null -ne $SortColumn) {
 				$GridViewName.Sort($GridViewName.Columns[$SortColumn], [System.ComponentModel.ListSortDirection]::Descending)
 			}
 			$GridViewName.CommitEdit('CurrentCellChange')
