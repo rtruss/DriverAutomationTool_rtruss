@@ -5,6 +5,7 @@ IMPORTANT
 - Latest build EXEs available from - https://github.com/maurice-daly/DriverAutomationTool/tree/master/Current%20Branch
 
 Version 7.2.5
+(Roger_Truss@brunswick.com)
 Updated: 
     Version to 7.2.5 as the prod exe is already 7.2.4.
     About URL to: https://msendpointmgr.com/driver-automation-tool/
@@ -19,7 +20,8 @@ Fix:
         Create-CustomPkg, changed to Invoke-Create-CustomPkg
         Create-DriverFBPkg, changed to Invoke-Create-DriverFBPkg
 
-Version 7.2.4a
+Version 7.2.4"a"
+(Roger_Truss@brunswick.com)
 New: Windows 11 24H2 Support.
 
 Version 7.2.3
